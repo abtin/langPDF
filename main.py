@@ -6,7 +6,7 @@ import os
 from PyPDF2 import PdfReader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
+from langchain.vectorstores import Chroma
 from langchain.chains.question_answering import load_qa_chain
 from langchain.llms import OpenAI
 from langchain.schema import (
@@ -14,6 +14,7 @@ from langchain.schema import (
     HumanMessage,
     AIMessage
 )
+
 
 def init():
     log.info("Initializing the app")
@@ -31,9 +32,9 @@ def main():
     pdf = st.file_uploader("Upload your PDF file", type=["pdf"])
     if pdf is not None:
         log.info("PDF file uploaded")
-        pdf_reader = PdfReader(pdf)
-        text = ""
-        with st.spinner("Extracting text from PDF"):
+        with st.spinner("Thinking..."):
+            pdf_reader = PdfReader(pdf)
+            text = ""
             for page in pdf_reader.pages:
                 text += page.extract_text()
 
@@ -45,7 +46,7 @@ def main():
             chunks = text_splitter.split_text(text)
 
             embeddings = OpenAIEmbeddings()
-            knowledge_base = FAISS.from_texts(texts=chunks, embedding=embeddings)
+            knowledge_base = Chroma.from_texts(texts=chunks, embedding=embeddings)
 
         messages = st.session_state.get("messages", [])
         if "messages" not in st.session_state:
@@ -57,7 +58,7 @@ def main():
 
         if user_question:
             st.session_state.messages.append(HumanMessage(content=user_question))
-            with st.spinner("Let me think..."):
+            with st.spinner("Preparing ..."):
                 docs = knowledge_base.similarity_search(user_question, k=3)
                 llm = OpenAI()
                 chain = load_qa_chain(llm=llm, chain_type="stuff")
@@ -66,9 +67,10 @@ def main():
 
             for i, msg in enumerate(messages[1:]):
                 if i % 2 == 0:
-                    message(msg.content, is_user=True, key=str(i) + "_user")
+                    message(msg.content, is_user=True, key=str(i) + "_user", avatar_style="croodles")
                 else:
-                    message(msg.content, is_user=False, key=str(i) + "_ai")
+                    message(msg.content, is_user=False, key=str(i) + "_ai", avatar_style="bottts")
+
 
 if __name__ == '__main__':
     main()

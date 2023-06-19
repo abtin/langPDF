@@ -5,5 +5,6 @@ streamlit
 streamlit_chatbot
 python-dotenv
 openai
-faiss-cpu
-tiktoken
+# faiss-cpu
+# tiktoken
+chromadb
