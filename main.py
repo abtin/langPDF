@@ -10,6 +10,9 @@ from PyPDF2 import PdfReader
 from dotenv import load_dotenv
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import ChatOpenAI
+from langchain.prompts.chat import (
+    ChatPromptTemplate,SystemMessagePromptTemplate, AIMessagePromptTemplate, HumanMessagePromptTemplate)
+from langchain.schema import AIMessage, HumanMessage, SystemMessage
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.memory import ConversationBufferMemory
 from langchain.text_splitter import CharacterTextSplitter
@@ -65,8 +68,16 @@ def create_vector_db(chunks: list[str]) -> Chroma:
 
 def create_conversation_chain(vectordb: Chroma):
     buffered_memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+    chatllm = ChatOpenAI(temperature=0)
+    first_message = [
+        SystemMessage(content="Only answer questions about the uploaded PDFs. "+
+                              "Refuse to answer any questions out of the context. "+
+                              "For every answer, provide the page on the PDF for reference. "+
+                              "If you don't know the answer, say I don't know.")
+    ]
+    chatllm(first_message)
     chain = ConversationalRetrievalChain.from_llm(
-        llm=ChatOpenAI(),
+        llm=chatllm,
         retriever=vectordb.as_retriever(),
         memory=buffered_memory
     )
