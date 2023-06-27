@@ -1,5 +1,7 @@
 import base64
 
+from langchain.schema import SystemMessage
+
 from ui_templates import css_style, ai_template, user_template
 
 import os
@@ -10,9 +12,6 @@ from PyPDF2 import PdfReader
 from dotenv import load_dotenv
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import ChatOpenAI
-from langchain.prompts.chat import (
-    ChatPromptTemplate,SystemMessagePromptTemplate, AIMessagePromptTemplate, HumanMessagePromptTemplate)
-from langchain.schema import AIMessage, HumanMessage, SystemMessage
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.memory import ConversationBufferMemory
 from langchain.text_splitter import CharacterTextSplitter
@@ -34,12 +33,10 @@ def init():
 
 
 def load_images(user_image_file, robot_image_file):
-    user_image = open(user_image_file, "rb")
-    robot_image = open(robot_image_file, "rb")
-    user_url = base64.b64encode(user_image.read()).decode()
-    robot_url = base64.b64encode(robot_image.read()).decode()
-    user_image.close()
-    robot_image.close()
+    with open(user_image_file, "rb") as user_image:
+        user_url = base64.b64encode(user_image.read()).decode()
+    with open(robot_image_file, "rb") as robot_image:
+        robot_url = base64.b64encode(robot_image.read()).decode()
     return user_url, robot_url
 
 
@@ -70,11 +67,20 @@ def create_conversation_chain(vectordb: Chroma):
     buffered_memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
     chatllm = ChatOpenAI(temperature=0)
     first_message = [
-        SystemMessage(content="Only answer questions about the uploaded PDFs. "+
-                              "Refuse to answer any questions out of the context. "+
-                              "For every answer, provide the page on the PDF for reference. "+
-                              "If you don't know the answer, say I don't know.")
+        SystemMessage(content="Given the following extracted parts of a long document and a question, " +
+                              "create a final answer with references ('SOURCES')." +
+                              "If you don't know the answer, just say that you don't know. "
+                              "Don't try to make up an answer." +
+                              "ALWAYS return a 'SOURCES' part in your answer." +
+                              "QUESTION: {question}" +
+                              "=========" +
+                              "Content: ..." +
+                              "Source: ..." +
+                              "..." +
+                              "=========" +
+                              "FINAL ANSWER:")
     ]
+
     chatllm(first_message)
     chain = ConversationalRetrievalChain.from_llm(
         llm=chatllm,
